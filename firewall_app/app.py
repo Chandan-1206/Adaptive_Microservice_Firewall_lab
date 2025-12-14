@@ -1,6 +1,9 @@
+# firewall_app/app.py
 import time
 from flask import Flask, request, Response, render_template, jsonify
 import requests
+from urllib.parse import unquote_plus
+from signatures import contains_sqli
 
 app = Flask(__name__)
 
@@ -25,9 +28,8 @@ def is_blocked(ip):
     if info["blocked"]:
         if now - info["blocked_at"] < BLOCK_DURATION:
             return True
-        else:
-            info["blocked"] = False
-            info["blocked_at"] = None
+        info["blocked"] = False
+        info["blocked_at"] = None
 
     return False
 
@@ -59,12 +61,24 @@ def update_stats(ip, allowed, reason=None):
 
 @app.before_request
 def firewall_logic():
-
     if request.path.startswith("/dashboard") or request.path.startswith("/api"):
         return
 
     ip = request.remote_addr or "unknown"
     now = time.time()
+
+    raw_payload = (
+        (request.query_string.decode() if request.query_string else "") +
+        (request.get_data(as_text=True) or "") +
+        (" ".join([f"{k}:{v}" for k, v in request.headers.items()]))
+    )
+
+    payload = unquote_plus(raw_payload)
+
+
+    if contains_sqli(payload):
+        update_stats(ip, False, "SQL_INJECTION_SIGNATURE")
+        return Response("BLOCKED - SQL INJECTION DETECTED", status=403)
 
     info = TRAFFIC_STATS.get(ip, {
         "count": 0,
@@ -76,12 +90,10 @@ def firewall_logic():
         "last_reason": None
     })
 
-    # Check if blocked
     if is_blocked(ip):
-        update_stats(ip, False, "Temporary ban")
+        update_stats(ip, False, "TEMPORARY_BAN")
         return Response("BLOCKED BY FIREWALL", status=403)
 
-    # Sliding window check
     if now - info["first_seen"] > WINDOW_SECONDS:
         info["count"] = 0
         info["first_seen"] = now
@@ -92,30 +104,27 @@ def firewall_logic():
         info["blocked"] = True
         info["blocked_at"] = now
         TRAFFIC_STATS[ip] = info
-        update_stats(ip, False, "Rate limit exceeded")
+        update_stats(ip, False, "RATE_LIMIT_EXCEEDED")
         return Response("BLOCKED - RATE LIMIT EXCEEDED", status=403)
 
     TRAFFIC_STATS[ip] = info
     update_stats(ip, True)
 
 
-# ✅ REAL TRAFFIC ROUTE (MONITORED)
 @app.route("/")
 def proxy_to_victim():
     try:
-        response = requests.get(VICTIM_URL)
-        return response.text
+        r = requests.get(VICTIM_URL)
+        return r.text
     except Exception as e:
         return f"Error contacting victim: {e}", 500
 
 
-# ✅ DASHBOARD (NOT MONITORED)
 @app.route("/dashboard")
 def dashboard():
     return render_template("dashboard.html")
 
 
-# ✅ STATS API (NOT MONITORED)
 @app.route("/api/stats")
 def stats():
     data = []

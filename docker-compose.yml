@@ -1,7 +1,8 @@
 services:
   victim_app:
     build:
-      context: ./victim_app
+      context: .
+      dockerfile: victim_app/Dockerfile
     container_name: victim_app
     ports:
       - "8000:8000"
@@ -10,7 +11,8 @@ services:
 
   firewall_app:
     build:
-      context: ./firewall_app
+      context: .
+      dockerfile: firewall_app/Dockerfile
     container_name: firewall_app
     ports:
       - "8080:8080"
@@ -21,8 +23,8 @@ services:
 
   attacker:
     build:
-      context: ./attacker
-  #  container_name: attacker commenting so that it do not conflict with manual running of container called "attack"
+      context: .
+      dockerfile: attacker/Dockerfile
     networks:
       - labnet
     environment:
