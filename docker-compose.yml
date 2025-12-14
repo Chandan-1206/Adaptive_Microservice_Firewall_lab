@@ -1,0 +1,35 @@
+services:
+  victim_app:
+    build:
+      context: ./victim_app
+    container_name: victim_app
+    ports:
+      - "8000:8000"
+    networks:
+      - labnet
+
+  firewall_app:
+    build:
+      context: ./firewall_app
+    container_name: firewall_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - victim_app
+    networks:
+      - labnet
+
+  attacker:
+    build:
+      context: ./attacker
+  #  container_name: attacker commenting so that it do not conflict with manual running of container called "attack"
+    networks:
+      - labnet
+    environment:
+      - TARGET_URL=http://firewall_app:8080/
+    profiles:
+      - manual
+
+networks:
+  labnet:
+    driver: bridge

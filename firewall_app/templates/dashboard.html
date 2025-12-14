@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Firewall Dashboard</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            border-radius: 12px;
+        }
+        .badge-active {
+            background-color: #28a745;
+        }
+        .badge-blocked {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h1 class="fw-bold">Firewall Simulation Dashboard</h1>
+        <p class="text-muted">Real-time monitoring of allowed vs blocked traffic</p>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4">
+
+        <!-- Per IP Bar Chart -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm p-3">
+                <h5 class="card-title text-center">Traffic Per IP</h5>
+                <canvas id="ipChart" height="220"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Table -->
+    <div class="card shadow-sm p-3 mt-4">
+        <h5 class="card-title text-center mb-3">IP Activity Table</h5>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle text-center">
+                <thead class="table-dark">
+                <tr>
+                    <th>IP Address</th>
+                    <th>Current Count</th>
+                    <th>Total Allowed</th>
+                    <th>Total Blocked</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let totalChart = null;
+let ipChart = null;
+
+async function loadStats() {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+
+    const allowedTotal = data.totals.allowed;
+    const blockedTotal = data.totals.blocked;
+
+    // ---- BAR CHART ----
+    const labels = data.ips.map(ip => ip.ip);
+    const allowed = data.ips.map(ip => ip.total_allowed_requests);
+    const blocked = data.ips.map(ip => ip.total_blocked_requests);
+
+    const ctx2 = document.getElementById('ipChart').getContext('2d');
+    const barData = {
+        labels,
+        datasets: [
+            {
+                label: "Allowed",
+                backgroundColor: "#28a745",
+                data: allowed
+            },
+            {
+                label: "Blocked",
+                backgroundColor: "#dc3545",
+                data: blocked
+            }
+        ]
+    };
+
+    if (ipChart) {
+        ipChart.data = barData;
+        ipChart.update();
+    } else {
+        ipChart = new Chart(ctx2, {
+            type: 'bar',
+            data: barData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' }
+                }
+            }
+        });
+    }
+
+    // ---- TABLE ----
+    let tbody = document.getElementById('tableBody');
+    tbody.innerHTML = "";
+
+    data.ips.forEach(ip => {
+        tbody.innerHTML += `
+        <tr>
+            <td>${ip.ip}</td>
+            <td>${ip.current_window_count}</td>
+            <td>${ip.total_allowed_requests}</td>
+            <td>${ip.total_blocked_requests}</td>
+            <td>
+                <span class="badge ${ip.blocked ? "badge-blocked" : "badge-active"}">
+                    ${ip.blocked ? "BLOCKED" : "ACTIVE"}
+                </span>
+            </td>
+        </tr>`;
+    });
+}
+
+setInterval(loadStats, 2000);
+</script>
+
+</body>
+</html>
