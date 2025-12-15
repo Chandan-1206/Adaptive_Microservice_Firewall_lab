@@ -1,3 +1,5 @@
+<!-- firewall_app/templates/dashboard.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,12 +19,6 @@
         .card {
             border-radius: 12px;
         }
-        .badge-active {
-            background-color: #28a745;
-        }
-        .badge-blocked {
-            background-color: #dc3545;
-        }
     </style>
 </head>
 
@@ -32,26 +28,23 @@
 
     <!-- Header -->
     <div class="text-center mb-4">
-        <h1 class="fw-bold">Firewall Simulation Dashboard</h1>
-        <p class="text-muted">Real-time monitoring of allowed vs blocked traffic</p>
+        <h1 class="fw-bold">Adaptive Firewall Dashboard</h1>
+        <p class="text-muted">Real-time Layer 7 traffic monitoring & adaptive enforcement</p>
     </div>
 
-    <!-- Charts Row -->
+    <!-- Charts -->
     <div class="row g-4">
-
-        <!-- Per IP Bar Chart -->
         <div class="col-lg-6">
             <div class="card shadow-sm p-3">
                 <h5 class="card-title text-center">Traffic Per IP</h5>
                 <canvas id="ipChart" height="220"></canvas>
             </div>
         </div>
-
     </div>
 
     <!-- Table -->
     <div class="card shadow-sm p-3 mt-4">
-        <h5 class="card-title text-center mb-3">IP Activity Table</h5>
+        <h5 class="card-title text-center mb-3">IP Activity & Defense State</h5>
         <div class="table-responsive">
             <table class="table table-hover table-bordered align-middle text-center">
                 <thead class="table-dark">
@@ -60,7 +53,8 @@
                     <th>Current Count</th>
                     <th>Total Allowed</th>
                     <th>Total Blocked</th>
-                    <th>Status</th>
+                    <th>Threat Score</th>
+                    <th>Defense State</th>
                 </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -71,23 +65,18 @@
 </div>
 
 <script>
-let totalChart = null;
 let ipChart = null;
 
 async function loadStats() {
     const res = await fetch('/api/stats');
     const data = await res.json();
 
-    const allowedTotal = data.totals.allowed;
-    const blockedTotal = data.totals.blocked;
-
-    // ---- BAR CHART ----
     const labels = data.ips.map(ip => ip.ip);
     const allowed = data.ips.map(ip => ip.total_allowed_requests);
     const blocked = data.ips.map(ip => ip.total_blocked_requests);
 
-    const ctx2 = document.getElementById('ipChart').getContext('2d');
-    const barData = {
+    const ctx = document.getElementById('ipChart').getContext('2d');
+    const chartData = {
         labels,
         datasets: [
             {
@@ -104,12 +93,12 @@ async function loadStats() {
     };
 
     if (ipChart) {
-        ipChart.data = barData;
+        ipChart.data = chartData;
         ipChart.update();
     } else {
-        ipChart = new Chart(ctx2, {
+        ipChart = new Chart(ctx, {
             type: 'bar',
-            data: barData,
+            data: chartData,
             options: {
                 responsive: true,
                 plugins: {
@@ -119,20 +108,31 @@ async function loadStats() {
         });
     }
 
-    // ---- TABLE ----
     let tbody = document.getElementById('tableBody');
     tbody.innerHTML = "";
 
     data.ips.forEach(ip => {
+        let state = "NORMAL";
+        let badgeClass = "badge bg-success";
+
+        if (ip.blocked) {
+            state = "BLOCKED";
+            badgeClass = "badge bg-danger";
+        } else if (ip.last_reason === "THROTTLED") {
+            state = "THROTTLED";
+            badgeClass = "badge bg-warning text-dark";
+        }
+
         tbody.innerHTML += `
         <tr>
             <td>${ip.ip}</td>
             <td>${ip.current_window_count}</td>
             <td>${ip.total_allowed_requests}</td>
             <td>${ip.total_blocked_requests}</td>
+            <td>${ip.threat_score}</td>
             <td>
-                <span class="badge ${ip.blocked ? "badge-blocked" : "badge-active"}">
-                    ${ip.blocked ? "BLOCKED" : "ACTIVE"}
+                <span class="${badgeClass}">
+                    ${state}
                 </span>
             </td>
         </tr>`;
