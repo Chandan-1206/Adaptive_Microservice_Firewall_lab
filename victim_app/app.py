@@ -4,7 +4,7 @@ import time
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
     real_ip = request.headers.get("X-Real-IP") or request.remote_addr
     time.sleep(0.05)

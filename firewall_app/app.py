@@ -4,7 +4,8 @@ import time
 from flask import Flask, request, Response, render_template, jsonify
 import requests
 from urllib.parse import unquote_plus
-from signatures import contains_sqli
+
+from signatures import contains_sqli, contains_xss
 
 app = Flask(__name__)
 
@@ -19,6 +20,9 @@ BASE_BLOCK = 90
 
 THROTTLE_DELAY = 0.4
 THREAT_DECAY = 0.01
+
+SAFE_ORIGIN = "http://localhost:8080"
+CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 TRAFFIC_STATS = {}
 
@@ -67,11 +71,26 @@ def thresholds(info):
     return allow, throttle, block
 
 
+def csrf_suspected(req):
+    if req.method not in CSRF_METHODS:
+        return False
+
+    origin = req.headers.get("Origin")
+    referer = req.headers.get("Referer")
+
+    if not origin and not referer:
+        return True
+
+    if origin and not origin.startswith(SAFE_ORIGIN):
+        return True
+
+    return False
+
+
 def update_stats(ip, allowed, reason=None):
     global TOTAL_ALLOWED, TOTAL_BLOCKED
 
     info = TRAFFIC_STATS[ip]
-
     info["last_reason"] = reason
 
     if allowed:
@@ -80,6 +99,7 @@ def update_stats(ip, allowed, reason=None):
     else:
         info["total_blocked_requests"] += 1
         TOTAL_BLOCKED += 1
+
 
 @app.before_request
 def firewall_logic():
@@ -102,8 +122,24 @@ def firewall_logic():
     if contains_sqli(payload):
         info["threat_score"] += 2.0
         TRAFFIC_STATS[ip] = info
-        update_stats(ip, False, "SQL_INJECTION_SIGNATURE")
+        update_stats(ip, False, "SQL_INJECTION")
         return Response("BLOCKED - SQL INJECTION DETECTED", status=403)
+
+    if contains_xss(payload):
+        info["threat_score"] += 1.5
+        TRAFFIC_STATS[ip] = info
+        update_stats(ip, False, "XSS_ATTACK")
+        return Response("BLOCKED - XSS DETECTED", status=403)
+
+    if csrf_suspected(request):
+        info["threat_score"] += 1.0
+        TRAFFIC_STATS[ip] = info
+
+        if info["threat_score"] > 2.5:
+            update_stats(ip, False, "CSRF_HEURISTIC")
+            return Response("BLOCKED - CSRF SUSPECTED", status=403)
+
+        update_stats(ip, True, "CSRF_SUSPECTED")
 
     if is_blocked(ip):
         TRAFFIC_STATS[ip] = info
@@ -137,19 +173,25 @@ def firewall_logic():
     TRAFFIC_STATS[ip] = info
     update_stats(ip, True, "NORMAL")
 
-
-@app.route("/")
+@app.route("/", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 def proxy_to_victim():
     try:
         headers = {
             "X-Real-IP": request.remote_addr,
             "X-Forwarded-For": request.remote_addr
         }
-        r = requests.get(VICTIM_URL, headers=headers)
+
+        r = requests.request(
+            method=request.method,
+            url=VICTIM_URL,
+            headers=headers,
+            data=request.get_data(),
+            params=request.args
+        )
+
         return r.text, r.status_code
     except Exception as e:
         return f"Error contacting victim: {e}", 500
-
 
 @app.route("/dashboard")
 def dashboard():
