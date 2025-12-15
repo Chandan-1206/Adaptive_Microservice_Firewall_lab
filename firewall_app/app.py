@@ -110,12 +110,15 @@ def firewall_logic():
     TRAFFIC_STATS[ip] = info
     update_stats(ip, True)
 
-
 @app.route("/")
 def proxy_to_victim():
     try:
-        r = requests.get(VICTIM_URL)
-        return r.text
+        headers = {
+            "X-Real-IP": request.remote_addr,
+            "X-Forwarded-For": request.remote_addr
+        }
+        r = requests.get(VICTIM_URL, headers=headers)
+        return r.text, r.status_code
     except Exception as e:
         return f"Error contacting victim: {e}", 500
 

@@ -1,3 +1,4 @@
+# victim_app/app.py
 from flask import Flask, request
 import time
 
@@ -5,9 +6,9 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    # Simulate some work
+    real_ip = request.headers.get("X-Real-IP") or request.remote_addr
     time.sleep(0.05)
-    return f"Hello from VICTIM app! Your IP (from proxy): {request.headers.get('X-Real-IP', 'unknown')}"
+    return f"Hello from VICTIM app! Client IP: {real_ip}"
 
 @app.route("/health")
 def health():
