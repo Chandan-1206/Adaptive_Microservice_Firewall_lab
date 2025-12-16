@@ -1,23 +1,38 @@
-<!-- firewall_app/templates/dashboard.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Firewall Dashboard</title>
+    <title>L7 WAF Security Dashboard</title>
 
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body {
-            background-color: #f8f9fa;
+            background: radial-gradient(circle at top, #0f2027, #000);
+            color: #e6e6e6;
         }
         .card {
-            border-radius: 12px;
+            border-radius: 14px;
+            background: #0b1c24;
+            box-shadow: 0 0 20px rgba(0,255,255,0.08);
+        }
+        .neon {
+            text-shadow: 0 0 8px rgba(0,255,255,0.8);
+        }
+        .badge {
+            font-size: 0.85rem;
+        }
+        .table-dark {
+            --bs-table-bg: #08151c;
+        }
+        .attack-row {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 5px rgba(255,0,0,0.3); }
+            50% { box-shadow: 0 0 20px rgba(255,0,0,0.8); }
+            100% { box-shadow: 0 0 5px rgba(255,0,0,0.3); }
         }
     </style>
 </head>
@@ -26,38 +41,75 @@
 
 <div class="container py-4">
 
-    <!-- Header -->
+    <!-- HEADER -->
     <div class="text-center mb-4">
-        <h1 class="fw-bold">Adaptive Firewall Dashboard</h1>
-        <p class="text-muted">Real-time Layer 7 traffic monitoring & adaptive enforcement</p>
+        <h1 class="fw-bold neon">🛡 L7 Web Application Firewall</h1>
+        <p class="text-info">
+            SQLi • XSS • CSRF • Rate Abuse Detection
+        </p>
     </div>
 
-    <!-- Charts -->
-    <div class="row g-4">
-        <div class="col-lg-6">
-            <div class="card shadow-sm p-3">
-                <h5 class="card-title text-center">Traffic Per IP</h5>
-                <canvas id="ipChart" height="220"></canvas>
+    <!-- SYSTEM STATUS -->
+    <div id="systemStatus" class="alert alert-success text-center fw-bold">
+        🟢 Normal Operation — No Attacks Detected
+    </div>
+
+    <!-- GLOBAL STATS -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card p-3 text-center">
+                <h6 class="text-success">Total Allowed</h6>
+                <h2 id="totalAllowed" class="fw-bold neon">0</h2>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card p-3 text-center">
+                <h6 class="text-danger">Total Blocked</h6>
+                <h2 id="totalBlocked" class="fw-bold neon">0</h2>
             </div>
         </div>
     </div>
 
-    <!-- Table -->
-    <div class="card shadow-sm p-3 mt-4">
-        <h5 class="card-title text-center mb-3">IP Activity & Defense State</h5>
+    <!-- CHART -->
+    <div class="card p-3 mb-4">
+        <h5 class="text-center neon mb-3">Traffic Per IP</h5>
+        <canvas id="ipChart" height="200"></canvas>
+    </div>
+
+    <!-- IP SUMMARY TABLE -->
+    <div class="card p-3 mb-4">
+        <h5 class="text-center neon mb-3">IP Enforcement Overview</h5>
         <div class="table-responsive">
-            <table class="table table-hover table-bordered align-middle text-center">
-                <thead class="table-dark">
+            <table class="table table-dark table-bordered align-middle text-center">
+                <thead>
                 <tr>
-                    <th>IP Address</th>
-                    <th>Current Count</th>
-                    <th>Total Allowed</th>
-                    <th>Total Blocked</th>
+                    <th>IP</th>
+                    <th>Window Count</th>
+                    <th>Allowed</th>
+                    <th>Blocked</th>
                     <th>Threat Score</th>
-                    <th>Defense State</th>
+                    <th>Attack Type</th>
+                    <th>Defense</th>
                 </tr>
                 </thead>
-                <tbody id="tableBody"></tbody>
+                <tbody id="ipTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ATTACK EVENTS TABLE -->
+    <div class="card p-3">
+        <h5 class="text-center text-danger neon mb-3">🚨 Attack Events</h5>
+        <div class="table-responsive">
+            <table class="table table-dark table-bordered align-middle text-center">
+                <thead>
+                <tr>
+                    <th>IP</th>
+                    <th>Attack Type</th>
+                    <th>Action Taken</th>
+                </tr>
+                </thead>
+                <tbody id="attackTable"></tbody>
             </table>
         </div>
     </div>
@@ -67,28 +119,50 @@
 <script>
 let ipChart = null;
 
+function attackType(reason, blocked) {
+    if (!reason) return "No Attack";
+    if (reason.includes("SQL")) return "SQL Injection Attempt";
+    if (reason.includes("XSS")) return "Cross-Site Scripting";
+    if (reason.includes("CSRF")) return "CSRF Suspicion";
+    if (reason.includes("RATE")) return "Rate Abuse";
+    if (blocked) return "Abnormal Traffic";
+    return "No Attack";
+}
+
+function defenseState(ip) {
+    if (ip.blocked) return `<span class="badge bg-danger">BLOCKED</span>`;
+    if (ip.last_reason && ip.last_reason.includes("THROTTLE"))
+        return `<span class="badge bg-warning text-dark">THROTTLED</span>`;
+    return `<span class="badge bg-success">ALLOWED</span>`;
+}
+
 async function loadStats() {
     const res = await fetch('/api/stats');
     const data = await res.json();
 
+    document.getElementById("totalAllowed").innerText = data.totals.allowed;
+    document.getElementById("totalBlocked").innerText = data.totals.blocked;
+
+    const status = document.getElementById("systemStatus");
+    if (data.totals.blocked > 0) {
+        status.className = "alert alert-danger text-center fw-bold";
+        status.innerText = "🔴 Active Threats Detected — Firewall Enforcing Rules";
+    } else {
+        status.className = "alert alert-success text-center fw-bold";
+        status.innerText = "🟢 Normal Operation — No Attacks Detected";
+    }
+
+    /* Chart */
     const labels = data.ips.map(ip => ip.ip);
     const allowed = data.ips.map(ip => ip.total_allowed_requests);
     const blocked = data.ips.map(ip => ip.total_blocked_requests);
 
-    const ctx = document.getElementById('ipChart').getContext('2d');
+    const ctx = document.getElementById("ipChart").getContext("2d");
     const chartData = {
         labels,
         datasets: [
-            {
-                label: "Allowed",
-                backgroundColor: "#28a745",
-                data: allowed
-            },
-            {
-                label: "Blocked",
-                backgroundColor: "#dc3545",
-                data: blocked
-            }
+            { label: "Allowed", data: allowed, backgroundColor: "#00ff99" },
+            { label: "Blocked", data: blocked, backgroundColor: "#ff4444" }
         ]
     };
 
@@ -96,50 +170,46 @@ async function loadStats() {
         ipChart.data = chartData;
         ipChart.update();
     } else {
-        ipChart = new Chart(ctx, {
-            type: 'bar',
-            data: chartData,
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'top' }
-                }
-            }
-        });
+        ipChart = new Chart(ctx, { type: "bar", data: chartData });
     }
 
-    let tbody = document.getElementById('tableBody');
-    tbody.innerHTML = "";
+    /* IP Summary Table */
+    const ipBody = document.getElementById("ipTable");
+    const attackBody = document.getElementById("attackTable");
+
+    ipBody.innerHTML = "";
+    attackBody.innerHTML = "";
 
     data.ips.forEach(ip => {
-        let state = "NORMAL";
-        let badgeClass = "badge bg-success";
+        const atk = attackType(ip.last_reason, ip.blocked);
 
-        if (ip.blocked) {
-            state = "BLOCKED";
-            badgeClass = "badge bg-danger";
-        } else if (ip.last_reason === "THROTTLED") {
-            state = "THROTTLED";
-            badgeClass = "badge bg-warning text-dark";
-        }
-
-        tbody.innerHTML += `
-        <tr>
+        ipBody.innerHTML += `
+        <tr class="${ip.blocked ? 'attack-row' : ''}">
             <td>${ip.ip}</td>
             <td>${ip.current_window_count}</td>
             <td>${ip.total_allowed_requests}</td>
             <td>${ip.total_blocked_requests}</td>
             <td>${ip.threat_score}</td>
-            <td>
-                <span class="${badgeClass}">
-                    ${state}
-                </span>
-            </td>
+            <td>${atk}</td>
+            <td>${defenseState(ip)}</td>
         </tr>`;
+
+        if (atk !== "No Attack") {
+            attackBody.innerHTML += `
+            <tr>
+                <td>${ip.ip}</td>
+                <td class="text-danger fw-bold">${atk}</td>
+                <td>${defenseState(ip)}</td>
+            </tr>`;
+        }
     });
 }
 
-setInterval(loadStats, 2000);
+/* Reliable polling */
+(function poll() {
+    loadStats();
+    setTimeout(poll, 2000);
+})();
 </script>
 
 </body>

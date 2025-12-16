@@ -1,5 +1,3 @@
-# firewall_app/app.py
-
 import time
 from flask import Flask, request, Response, render_template, jsonify
 import requests
@@ -26,6 +24,10 @@ CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 TRAFFIC_STATS = {}
 
+# ✅ NEW: attack history log
+ATTACK_EVENTS = []
+MAX_EVENTS = 300
+
 TOTAL_ALLOWED = 0
 TOTAL_BLOCKED = 0
 
@@ -42,6 +44,18 @@ def default_ip_state(now):
         "threat_score": 0.0,
         "last_activity": now
     }
+
+
+# ✅ NEW: explicit attack logger
+def log_attack(ip, attack_type, action):
+    ATTACK_EVENTS.append({
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "ip": ip,
+        "attack_type": attack_type,
+        "action": action
+    })
+    if len(ATTACK_EVENTS) > MAX_EVENTS:
+        ATTACK_EVENTS.pop(0)
 
 
 def is_blocked(ip):
@@ -119,33 +133,42 @@ def firewall_logic():
 
     payload = unquote_plus(raw_payload)
 
+    # -------- SQL Injection --------
     if contains_sqli(payload):
         info["threat_score"] += 2.0
         TRAFFIC_STATS[ip] = info
         update_stats(ip, False, "SQL_INJECTION")
-        return Response("BLOCKED - SQL INJECTION DETECTED", status=403)
+        log_attack(ip, "SQL Injection", "Blocked")
+        return Response("BLOCKED - SQL INJECTION", status=403)
 
+    # -------- XSS --------
     if contains_xss(payload):
         info["threat_score"] += 1.5
         TRAFFIC_STATS[ip] = info
         update_stats(ip, False, "XSS_ATTACK")
-        return Response("BLOCKED - XSS DETECTED", status=403)
+        log_attack(ip, "XSS", "Blocked")
+        return Response("BLOCKED - XSS", status=403)
 
+    # -------- CSRF --------
     if csrf_suspected(request):
         info["threat_score"] += 1.0
         TRAFFIC_STATS[ip] = info
 
         if info["threat_score"] > 2.5:
-            update_stats(ip, False, "CSRF_HEURISTIC")
-            return Response("BLOCKED - CSRF SUSPECTED", status=403)
+            update_stats(ip, False, "CSRF_BLOCK")
+            log_attack(ip, "CSRF", "Blocked")
+            return Response("BLOCKED - CSRF", status=403)
 
         update_stats(ip, True, "CSRF_SUSPECTED")
+        log_attack(ip, "CSRF", "ALLOWED")
 
+    # -------- Existing block --------
     if is_blocked(ip):
         TRAFFIC_STATS[ip] = info
-        update_stats(ip, False, "TEMPORARY_BAN")
-        return Response("BLOCKED BY FIREWALL", status=403)
+        update_stats(ip, False, "TEMP_BAN")
+        return Response("BLOCKED", status=403)
 
+    # -------- Rate logic --------
     if now - info["first_seen"] > WINDOW_SECONDS:
         info["count"] = 0
         info["first_seen"] = now
@@ -161,6 +184,7 @@ def firewall_logic():
         info["threat_score"] += 1.5
         TRAFFIC_STATS[ip] = info
         update_stats(ip, False, "RATE_LIMIT_BLOCK")
+        log_attack(ip, "Abnormal Traffic", "Blocked")
         return Response("BLOCKED - RATE LIMIT", status=403)
 
     if info["count"] > throttle_t:
@@ -168,30 +192,24 @@ def firewall_logic():
         info["threat_score"] += 0.2
         TRAFFIC_STATS[ip] = info
         update_stats(ip, True, "THROTTLED")
+        log_attack(ip, "Abnormal Traffic", "Throttled")
         return
 
     TRAFFIC_STATS[ip] = info
     update_stats(ip, True, "NORMAL")
 
+
 @app.route("/", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 def proxy_to_victim():
-    try:
-        headers = {
-            "X-Real-IP": request.remote_addr,
-            "X-Forwarded-For": request.remote_addr
-        }
+    r = requests.request(
+        method=request.method,
+        url=VICTIM_URL,
+        headers={"X-Real-IP": request.remote_addr},
+        data=request.get_data(),
+        params=request.args
+    )
+    return r.text, r.status_code
 
-        r = requests.request(
-            method=request.method,
-            url=VICTIM_URL,
-            headers=headers,
-            data=request.get_data(),
-            params=request.args
-        )
-
-        return r.text, r.status_code
-    except Exception as e:
-        return f"Error contacting victim: {e}", 500
 
 @app.route("/dashboard")
 def dashboard():
@@ -200,20 +218,20 @@ def dashboard():
 
 @app.route("/api/stats")
 def stats():
-    data = []
-    for ip, info in TRAFFIC_STATS.items():
-        data.append({
-            "ip": ip,
-            "current_window_count": info["count"],
-            "blocked": info["blocked"],
-            "total_allowed_requests": info["total_allowed_requests"],
-            "total_blocked_requests": info["total_blocked_requests"],
-            "last_reason": info["last_reason"],
-            "threat_score": round(info["threat_score"], 2)
-        })
-
     return jsonify({
-        "ips": data,
+        "ips": [
+            {
+                "ip": ip,
+                "current_window_count": info["count"],
+                "blocked": info["blocked"],
+                "total_allowed_requests": info["total_allowed_requests"],
+                "total_blocked_requests": info["total_blocked_requests"],
+                "last_reason": info["last_reason"],
+                "threat_score": round(info["threat_score"], 2)
+            }
+            for ip, info in TRAFFIC_STATS.items()
+        ],
+        "events": ATTACK_EVENTS,   # ✅ HISTORY HERE
         "totals": {
             "allowed": TOTAL_ALLOWED,
             "blocked": TOTAL_BLOCKED
