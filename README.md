@@ -1,5 +1,5 @@
 # 🛡 Adaptive Microservice Firewall Lab  
-**Ethical Hacking • Docker • Python • Layer-7 WAF Simulation**
+** Docker • Python • Layer-7 WAF Simulation**
 
 A complete **attack–defense cybersecurity lab** that simulates real-world web attacks and enforces an **adaptive Layer-7 firewall** using Python and Docker.  
 The project demonstrates **DoS mitigation, SQLi/XSS/CSRF detection, adaptive rate limiting, threat scoring, and historical attack logging**, visualized through a real-time security dashboard.
@@ -33,20 +33,20 @@ The firewall adapts dynamically based on **traffic history and threat score**, e
 ---
 
 ##  System Architecture
-
-Browser ──▶ Firewall (8080) ──▶ Victim App (8000)
+```bash
+Browser ──> Firewall (8080) ──> Victim App (8000)
 │
 ├── Traffic Inspection (SQLi / XSS / CSRF)
 ├── Adaptive Rate Limiter
 ├── Threat Score Engine
 └── Live Dashboard (/dashboard)
 
-Attacker Container ──▶ Firewall (HTTP Flood)
-
+Attacker Container ──> Firewall (HTTP Flood)
+```
 ---
 
 ##  Directory Structure
-
+```bash
 Adaptive_Microservice_Firewall_lab
 ├── attacker/
 │   ├── attack.py
@@ -68,22 +68,54 @@ Adaptive_Microservice_Firewall_lab
 ├── docker-compose.yml
 ├── README.md
 └── requirements.txt
+```
+---
+
+## Project Screenshots
+
+This section demonstrates the firewall detection capabilities and the monitoring interface during various attack simulations.
+
+### Monitoring Dashboards
+
+**Normal Operation**
+![Normal Dashboard](./Output/normal_dashboard.png)
+The dashboard showing the system state when no threats are detected.
+
+**Attack Blocked View**
+![Dashboard Blocked](./Output/dashboard_blocked.png)
+The visual alert triggered on the dashboard when the firewall intercepts a malicious request.
 
 ---
 
-##  Project Screenshots
+### Blocked Security Threats
 
-| Stage | Screenshot |
-|-----|-----------|
-| Docker Build | ![](Output/Output1-Building%20containers.png) |
-| Containers Running | ![](Output/Output2-Starting%20containers.png) |
-| Victim App (No Firewall) | ![](Output/Output3-VictimApp%20with%20no%20firewall%20(Port-8000,IP-172.18.0.3).png) |
-| Victim App (With Firewall) | ![](Output/Output4-VictimApp%20with%20firewall(Port-8080,IP-172.18.0.1).png) |
-| Normal Traffic | ![](Output/Output5-No%20attack.png) |
-| DoS HTTP Flood | ![](Output/Output6-%20Attack%20using%20hhtp%20flooding%28Dos%20attack%29.png) |
-| Attacker IP Blocked | ![](Output/Output7-%20Attack%20container%20IP-172.18.0.4%20gets%20blocked.png) |
-| Brute Refresh Flood | ![](Output/Output8-%20BruteForce%20attack%28Refresh%20flood%29%20on%20VictimApp%20IP%20also%20blocked.png) |
+**SQL Injection (SQLi)**
+The firewall identifies and drops requests containing SQL injection patterns.
+* Interception Result: ![SQLi Blocked](./Output/blocked_SQLi.png)
+* Dashboard Alert: ![SQLI Dashboard](./Output/dashboard_SQLI.png)
 
+**Cross-Site Scripting (XSS)**
+Prevention of script injection attacks through request filtering.
+* Interception Result: ![XSS Blocked](./Output/blocked_xss.png)
+* Dashboard Alert: ![XSS Dashboard](./Output/dashboard_XSS.png)
+
+**Cross-Site Request Forgery (CSRF)**
+Detection of unauthorized POST requests or missing CSRF tokens.
+* Interception Result: ![CSRF Blocked](./Output/blocked_CSRF_method-POST.png)
+* Dashboard Alert: ![CSRF Dashboard](./Output/dashboard_CSRF.png)
+
+**Traffic Throttling and Rate Limiting**
+Mitigation of request overloads to prevent service exhaustion.
+* Interception Result: ![Request Overload](./Output/blocked_request_overload.png)
+* Dashboard Alert: ![Throttled Dashboard](./Output/dashboard_throttled.png)
+
+---
+
+### System Environment
+
+**Host Status**
+![Host Normal](./Output/host_normal.png)
+Confirmation of the host environment state during baseline testing.
 ---
 
 ##  How to Run
@@ -142,9 +174,9 @@ docker system prune -f
 
 ##  Learning Outcomes
 
--> Practical DoS & WAF internals
--> Reverse proxy firewall design
--> Adaptive security based on traffic history
--> Docker microservice networking
--> Real-time cyber attack visualization
--> Interview-ready cybersecurity project
+- Practical DoS & WAF internals
+- Reverse proxy firewall design
+- Adaptive security based on traffic history
+- Docker microservice networking
+- Real-time cyber attack visualization
+- Interview-ready cybersecurity project
