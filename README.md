@@ -134,11 +134,9 @@ Mitigation of request overloads to prevent service exhaustion.
 
 ### System Environment
 
-**Host Status**
+*Host Status*
 <br>
 ![Host Normal](./Output/host_normal.png)
-<br>
-Confirmation of the host environment state during baseline testing.
 ---
 
 ##  How to Run
