@@ -1,278 +1,150 @@
-# 🔥 Ethical Hacking Firewall Simulation (Docker + Python)
+# 🛡 Adaptive Microservice Firewall Lab  
+**Ethical Hacking • Docker • Python • Layer-7 WAF Simulation**
 
-A complete ethical hacking mini-project demonstrating:
-
-- DoS-style attack simulation  
-- Python-based firewall with IP rate limiting  
-- Real-time traffic monitoring dashboard  
-- Docker-based microservice architecture  
-- Attacker container executed manually  
+A complete **attack–defense cybersecurity lab** that simulates real-world web attacks and enforces an **adaptive Layer-7 firewall** using Python and Docker.  
+The project demonstrates **DoS mitigation, SQLi/XSS/CSRF detection, adaptive rate limiting, threat scoring, and historical attack logging**, visualized through a real-time security dashboard.
 
 ---
 
-# 📸 **Project Screenshots (Outputs)**
+##  Project Overview
 
-### **Output 1 – Building Containers**
-![Output1-Building Containers](Output/Output1-Building%20containers.png)
+This lab recreates a realistic microservice environment with:
 
-### **Output 2 – Starting Containers**
-![Output2-Starting Containers](Output/Output2-Starting%20containers.png)
+- **Firewall (Reverse Proxy / WAF)** inspecting all inbound traffic  
+- **Victim Flask Application** protected behind the firewall  
+- **Attacker Container** generating high-volume malicious traffic  
+- **Live Security Dashboard** for monitoring attacks & defenses  
 
-### **Output 3 – VictimApp With No Firewall (Port 8000, IP 172.18.0.3)**
-![Output3-No Firewall](Output/Output3-VictimApp%20with%20no%20firewall%20(Port-8000,IP-172.18.0.3).png)
-
-### **Output 4 – VictimApp With Firewall (Port 8080, IP 172.18.0.1)**
-![Output4-With Firewall](Output/Output4-VictimApp%20with%20firewall(Port-8080,IP-172.18.0.1).png)
-
-### **Output 5 – No Attack (Normal Behavior)**
-![Output5-No Attack](Output/Output5-No%20attack.png)
-
-### **Output 6 – DoS Attack Using HTTP Flooding**
-![Output6-Dos Attack]![Output6](Output/Output6-%20Attack%20using%20hhtp%20flooding%28Dos%20attack%29.png)
-
-
-### **Output 7 – Attacker Container IP Gets Blocked**
-![Output7-IP Blocked]![Output7](Output/Output7-%20Attack%20container%20IP-172.18.0.4%20gets%20blocked.png)
-
-
-### **Output 8 – Brute Force Refresh Flood Attack (VictimApp IP Also Gets Blocked)**
-![Output8-Brute force]![Output8](Output/Output8-%20BruteForce%20attack%28Refresh%20flood%29%20on%20VictimApp%20IP%20also%20blocked.png)
-
+The firewall adapts dynamically based on **traffic history and threat score**, escalating actions from **allow → throttle → block**.
 
 ---
 
-## 🚀 Project Overview
+##  Security Capabilities
 
-This project simulates a **real-world attack and defense scenario**:
-
-1. A **Firewall container** monitors and forwards requests.
-2. A **Victim Flask app** sits behind the firewall.
-3. An **Attacker container** sends 1000 fast requests.
-4. Firewall analyzes traffic and:
-   - Allows first few requests
-   - Blocks abusive IPs (403)
-   - Visualizes results on dashboard
-
-Dashboard URL:  
-👉 **http://localhost:8080/dashboard**
+- **Layer-7 DoS Protection** (HTTP Flood / Refresh Flood)
+- **Adaptive Rate Limiting** with threat-score based thresholds
+- **SQL Injection Detection** (regex signature based)
+- **XSS Detection** (script, JS, DOM-based patterns)
+- **CSRF Heuristics** (Origin / Referer validation)
+- **Temporary IP Banning** with decay & recovery
+- **Attack History Logging** (timeline of events)
+- **Real-Time Visualization Dashboard**
 
 ---
 
-## 📁 Directory Structure
+##  System Architecture
 
-```
-docker-firewall-lab/
-├── docker-compose.yml
+Browser ──▶ Firewall (8080) ──▶ Victim App (8000)
+│
+├── Traffic Inspection (SQLi / XSS / CSRF)
+├── Adaptive Rate Limiter
+├── Threat Score Engine
+└── Live Dashboard (/dashboard)
+
+Attacker Container ──▶ Firewall (HTTP Flood)
+
+---
+
+##  Directory Structure
+
+Adaptive_Microservice_Firewall_lab
+├── attacker/
+│   ├── attack.py
+│   ├── Dockerfile
+│   └── fire/
 ├── firewall_app/
-│   ├── Dockerfile
+│   ├── templates/
+│   │   ├── dashboard.html
+│   │   └── index.html
 │   ├── app.py
-│   ├── requirements.txt
-│   └── templates/
-│       └── dashboard.html
+│   ├── Dockerfile
+│   └── signatures.py
+├── Output/ [...]
 ├── victim_app/
-│   ├── Dockerfile
 │   ├── app.py
-│   └── requirements.txt
-└── attacker/
-    ├── Dockerfile
-    ├── attack.py
-    └── requirements.txt
-```
+│   └── Dockerfile
+├── .gitignore
+├── desktop.ini
+├── docker-compose.yml
+├── README.md
+└── requirements.txt
 
 ---
 
-## 🧩 Architecture
+##  Project Screenshots
 
-```
-Browser ──> Firewall (8080) ──> Victim Server (8000)
-                │
-                └──> Dashboard (Traffic Monitoring)
-
-Attacker Container ──> Firewall (Flood Requests)
-```
-
-Firewall calculates:
-
-- Requests per IP  
-- Allowed vs Blocked  
-- Temporary banning  
-- Live stats  
+| Stage | Screenshot |
+|-----|-----------|
+| Docker Build | ![](Output/Output1-Building%20containers.png) |
+| Containers Running | ![](Output/Output2-Starting%20containers.png) |
+| Victim App (No Firewall) | ![](Output/Output3-VictimApp%20with%20no%20firewall%20(Port-8000,IP-172.18.0.3).png) |
+| Victim App (With Firewall) | ![](Output/Output4-VictimApp%20with%20firewall(Port-8080,IP-172.18.0.1).png) |
+| Normal Traffic | ![](Output/Output5-No%20attack.png) |
+| DoS HTTP Flood | ![](Output/Output6-%20Attack%20using%20hhtp%20flooding%28Dos%20attack%29.png) |
+| Attacker IP Blocked | ![](Output/Output7-%20Attack%20container%20IP-172.18.0.4%20gets%20blocked.png) |
+| Brute Refresh Flood | ![](Output/Output8-%20BruteForce%20attack%28Refresh%20flood%29%20on%20VictimApp%20IP%20also%20blocked.png) |
 
 ---
 
-## ⚙️ How to Run the Project
+##  How to Run
 
-### **1. Build all containers**
+### 1️⃣ Build Containers
 ```bash
 docker compose build
 ```
-
-### **2. Start firewall + victim**
+### 2️⃣ Start Firewall & Victim
 ```bash
 docker compose up -d
 ```
-
-### **3. Check running containers**
+### 3️⃣ Verify
 ```bash
 docker ps
 ```
+##  Access Points
 
-You should see:
+Firewall Proxy: http://localhost:8080
+Security Dashboard: http://localhost:8080/dashboard
 
-- `firewall_app`
-- `victim_app`
+### Dashboard updates every 2 seconds and shows:
+Allowed vs Blocked traffic
+Per-IP enforcement
+Threat scores
+Attack history timeline
 
----
-
-## 🖥️ Access Dashboard
-
-Open:
-
-👉 **http://localhost:8080/dashboard**
-
-The dashboard shows:
-
-- Pie chart: Allowed vs Blocked
-- Bar chart: Per-IP stats
-- Table: IP → Count, Allowed, Blocked, Status
-
-Dashboard refreshes every 2 seconds.
-
----
-
-## 🔎 Test Normal Traffic
-
-Open:
-
-👉 **http://localhost:8080/**
-
-Refresh a few times.
-
-You will see your IP in dashboard as:
-
-```
-ACTIVE
-Allowed: few
-Blocked: 0
-```
-
----
-
-## 🔥 Run Attacker (Manual Trigger)
-
-### Attack with self-deleting container
+##  Launch Attack (Manual)
 ```bash
 docker compose --profile manual run --rm attacker
 ```
+### Expected result:
+Initial requests allowed
+Throttling begins
+IP blocked (403)
+Dashboard flags active threats
 
-### Attack but keep container for logs
-```bash
-docker compose --profile manual run attacker
-```
+##  Firewall Decision Logic
+| Condition        | Action          |
+| ---------------- | --------------- |
+| Low traffic      | Allow           |
+| Suspicious burst | Throttle        |
+| Sustained abuse  | Block IP        |
+| SQLi / XSS       | Instant block   |
+| Repeated CSRF    | Escalated block |
 
-You will see:
+Threat score decays over time, allowing recovery for legitimate clients.
 
-```
-[ATTACKER] Total requests: 1000
-200: 50
-403: 950
-```
-
-Dashboard marks attacker IP as **BLOCKED**.
-
----
-
-## 📜 View Logs
-
-### Firewall logs
-```bash
-docker logs -f firewall_app
-```
-
-### Victim logs
-```bash
-docker logs -f victim_app
-```
-
-### Attacker logs (if container kept)
-```bash
-docker ps -a
-docker logs -f <attacker-container-name>
-```
-
----
-
-## 🧹 Cleanup & Docker Maintenance Commands
-
-#### Stop & remove containers
+##  Useful Commands
 ```bash
 docker compose down
-```
-
-#### Remove all unused containers, networks, images
-```bash
+docker logs -f firewall_app
+docker logs -f victim_app
 docker system prune -f
 ```
 
-#### Remove unused networks
-```bash
-docker network prune -f
-```
+##  Learning Outcomes
 
-#### Remove specific container
-```bash
-docker rm -f <container>
-```
-
----
-
-## 🛠 Useful Docker Commands
-
-Enter a container shell:
-```bash
-docker exec -it firewall_app sh
-```
-
-Show last 100 log lines:
-```bash
-docker logs --tail 100 firewall_app
-```
-
-Restart services:
-```bash
-docker compose restart
-```
-
----
-
-## 📌 Expected Behavior Summary
-
-| Scenario | Result |
-|----------|---------|
-Normal browsing | IP = ACTIVE |
-Repeat refresh | Eventually BLOCKED |
-Run attacker | 950+ 403 blocks |
-Dashboard open | Real time stats |
-
----
-
-## 🎯 What You Learn
-
-- How DoS attacks work  
-- How firewalls mitigate floods  
-- Docker microservice networking  
-- Flask-based reverse proxy logic  
-- Visualizing cyber attacks  
-- Ethical hacking simulation  
-
----
-
-## 🏁 Conclusion
-
-This project is a complete **Attack + Defense Lab** suitable for:
-
-- PBL submissions  
-- Cybersecurity demonstrations  
-- Ethical hacking learning  
-- Portfolio showcase  
-- Interviews  
+-> Practical DoS & WAF internals
+-> Reverse proxy firewall design
+-> Adaptive security based on traffic history
+-> Docker microservice networking
+-> Real-time cyber attack visualization
+-> Interview-ready cybersecurity project
