@@ -75,14 +75,21 @@ Adaptive_Microservice_Firewall_lab
 
 This section demonstrates the firewall detection capabilities and the monitoring interface during various attack simulations.
 
+---
+
 ### Monitoring Dashboards
 
 **Normal Operation**
+<br>
 ![Normal Dashboard](./Output/normal_dashboard.png)
+<br> 
 The dashboard showing the system state when no threats are detected.
+<br>
 
 **Attack Blocked View**
+<br>
 ![Dashboard Blocked](./Output/dashboard_blocked.png)
+<br>
 The visual alert triggered on the dashboard when the firewall intercepts a malicious request.
 
 ---
@@ -90,31 +97,47 @@ The visual alert triggered on the dashboard when the firewall intercepts a malic
 ### Blocked Security Threats
 
 **SQL Injection (SQLi)**
+
 The firewall identifies and drops requests containing SQL injection patterns.
-* Interception Result: ![SQLi Blocked](./Output/blocked_SQLi.png)
-* Dashboard Alert: ![SQLI Dashboard](./Output/dashboard_SQLI.png)
+
+* Interception Result:<br> ![SQLi Blocked](./Output/blocked_SQLi.png) <br>
+* Dashboard Alert:<br> ![SQLI Dashboard](./Output/dashboard_SQLI.png) <br>
+
+---
 
 **Cross-Site Scripting (XSS)**
+
 Prevention of script injection attacks through request filtering.
-* Interception Result: ![XSS Blocked](./Output/blocked_xss.png)
-* Dashboard Alert: ![XSS Dashboard](./Output/dashboard_XSS.png)
+
+* Interception Result:<br> ![XSS Blocked](./Output/blocked_xss.png)<br>
+* Dashboard Alert:<br> ![XSS Dashboard](./Output/dashboard_XSS.png)<br>
+
+---
 
 **Cross-Site Request Forgery (CSRF)**
+
 Detection of unauthorized POST requests or missing CSRF tokens.
-* Interception Result: ![CSRF Blocked](./Output/blocked_CSRF_method-POST.png)
-* Dashboard Alert: ![CSRF Dashboard](./Output/dashboard_CSRF.png)
+
+* Interception Result:<br> ![CSRF Blocked](./Output/blocked_CSRF_method-POST.png)<br>
+* Dashboard Alert:<br> ![CSRF Dashboard](./Output/dashboard_CSRF.png)<br>
+
+---
 
 **Traffic Throttling and Rate Limiting**
+
 Mitigation of request overloads to prevent service exhaustion.
-* Interception Result: ![Request Overload](./Output/blocked_request_overload.png)
-* Dashboard Alert: ![Throttled Dashboard](./Output/dashboard_throttled.png)
+
+* Interception Result:<br> ![Request Overload](./Output/blocked_request_overload.png)<br>
+* Dashboard Alert:<br> ![Throttled Dashboard](./Output/dashboard_throttled.png)<br>
 
 ---
 
 ### System Environment
 
 **Host Status**
+<br>
 ![Host Normal](./Output/host_normal.png)
+<br>
 Confirmation of the host environment state during baseline testing.
 ---
 
